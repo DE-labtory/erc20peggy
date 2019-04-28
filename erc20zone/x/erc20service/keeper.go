@@ -22,22 +22,92 @@ import (
 )
 
 type Keeper struct {
-	storeKey sdk.StoreKey
-	cdc      *codec.Codec
+	accStoreKey  sdk.StoreKey
+	lockStoreKey sdk.StoreKey
+	cdc          *codec.Codec
 }
 
-func (k Keeper) Mint(ctx sdk.Context, address sdk.Address, balance sdk.Coins) {
-
+func (k Keeper) Mint(ctx sdk.Context, addr sdk.AccAddress, balance sdk.Coins) {
+	acc := k.account(ctx, addr)
+	acc.Balance = acc.Balance.Add(balance)
+	k.setAccount(ctx, acc)
 }
 
-func (k Keeper) Lock(ctx sdk.Context, address sdk.Address, balance sdk.Coins) {
-
+func (k Keeper) Burn(ctx sdk.Context, addr sdk.AccAddress, balance sdk.Coins) {
+	acc := k.account(ctx, addr)
+	acc.Balance = acc.Balance.Sub(balance)
+	k.setAccount(ctx, acc)
 }
 
-func (k Keeper) UnLock(ctx sdk.Context, address sdk.Address, balance sdk.Coins) {
-
+func (k Keeper) Balance(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins {
+	acc := k.account(ctx, addr)
+	return acc.Balance
 }
 
-func (k Keeper) Burn(ctx sdk.Context, address sdk.Address, balance sdk.Coins) {
+func (k Keeper) account(ctx sdk.Context, addr sdk.AccAddress) Account {
+	accStore := ctx.KVStore(k.accStoreKey)
+	if !accStore.Has(addr.Bytes()) {
+		return NewAccount(addr)
+	}
 
+	binAcc := accStore.Get(addr.Bytes())
+	acc := Account{}
+	k.cdc.MustUnmarshalBinaryBare(binAcc, &acc)
+
+	return acc
+}
+
+func (k Keeper) setAccount(ctx sdk.Context, acc Account) {
+	if acc.Owner.Empty() {
+		return
+	}
+
+	accStore := ctx.KVStore(k.accStoreKey)
+	accStore.Set(acc.Owner.Bytes(), k.cdc.MustMarshalBinaryBare(acc))
+}
+
+func (k Keeper) Lock(ctx sdk.Context, addr sdk.AccAddress, balance sdk.Coins) {
+	lockedTokens := k.lockedTokens(ctx, addr)
+	lockedTokens = lockedTokens.Add(balance)
+	k.setLockedTokens(ctx, addr, lockedTokens)
+
+	k.Burn(ctx, addr, balance)
+}
+
+func (k Keeper) UnLock(ctx sdk.Context, addr sdk.AccAddress, balance sdk.Coins) {
+	lockedTokens := k.lockedTokens(ctx, addr)
+	lockedTokens = lockedTokens.Sub(balance)
+	k.setLockedTokens(ctx, addr, lockedTokens)
+
+	k.Mint(ctx, addr, balance)
+}
+
+func (k Keeper) lockedTokens(ctx sdk.Context, addr sdk.AccAddress) sdk.Coins {
+	lockStore := ctx.KVStore(k.lockStoreKey)
+	if !lockStore.Has(addr.Bytes()) {
+		return InitBalance
+	}
+
+	binLocked := lockStore.Get(addr.Bytes())
+	lockedTokens := sdk.Coins{}
+	k.cdc.MustUnmarshalBinaryBare(binLocked, &lockedTokens)
+
+	return lockedTokens
+}
+
+func (k Keeper) setLockedTokens(ctx sdk.Context, addr sdk.AccAddress, lockedTokens sdk.Coins) {
+	if addr.Empty() {
+		return
+	}
+
+	lockStore := ctx.KVStore(k.lockStoreKey)
+	lockStore.Set(addr.Bytes(), k.cdc.MustMarshalBinaryBare(lockedTokens))
+}
+
+func NewKeeper(storeKey sdk.StoreKey, lockStoreKey sdk.StoreKey, cdc *codec.Codec) Keeper {
+	return Keeper{
+		accStoreKey:  storeKey,
+		lockStoreKey: lockStoreKey,
+		cdc:          cdc,
+	}
 }

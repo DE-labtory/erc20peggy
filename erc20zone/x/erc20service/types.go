@@ -28,8 +28,8 @@ type Account struct {
 	Balance sdk.Coins      `json:"balance"`
 }
 
-// Create NewAccount
-// Initial balance of account is 0
+// Create a new account.
+// Initial balance of account is 0.
 func NewAccount(owner sdk.AccAddress) Account {
 	return Account{
 		Owner:   owner,
