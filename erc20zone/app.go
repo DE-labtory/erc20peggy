@@ -19,6 +19,7 @@ package erc20zone
 import (
 	bam "github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
+	"github.com/cosmos/cosmos-sdk/x/auth"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 )
@@ -33,5 +34,16 @@ type erc20ServiceApp struct {
 }
 
 func NewErc20ServiceApp(logger log.Logger, db dbm.DB) *erc20ServiceApp {
-	return &erc20ServiceApp{}
+	// First, define the top level codec that will be shared by the different modules.
+	cdc := MakeCodec()
+
+	// BaseApp handles interactions with Tendermint through the ABCI protocol.
+	baseApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc))
+
+	app := &erc20ServiceApp{
+		BaseApp: baseApp,
+		cdc:     cdc,
+	}
+
+	return app
 }
