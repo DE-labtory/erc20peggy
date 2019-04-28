@@ -1,1 +1,1 @@
-# erc20pegzone
+# erc20peggy
