@@ -28,7 +28,7 @@ func NewHandler(keeper Keeper) sdk.Handler {
 		case MsgLock:
 			return handleMsgLock(ctx, keeper, msg)
 		default:
-			errMsg := "Unrecognized witness Msg type: " + reflect.TypeOf(msg).Name()
+			errMsg := "Unrecognized lock Msg type: " + reflect.TypeOf(msg).Name()
 			return sdk.ErrUnknownRequest(errMsg).Result()
 		}
 	}

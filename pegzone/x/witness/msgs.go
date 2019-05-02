@@ -28,7 +28,7 @@ type MsgLock struct {
 	Owner   sdk.AccAddress
 }
 
-func NewMsgWitness(data []byte, address string, owner sdk.AccAddress) MsgLock {
+func NewMsgLock(data []byte, address string, owner sdk.AccAddress) MsgLock {
 	return MsgLock{
 		Address: address,
 		Data:    data,
