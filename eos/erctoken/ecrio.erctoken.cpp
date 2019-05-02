@@ -189,6 +189,8 @@ ACTION erctoken::decallowance( name owner, name spender, asset quantity ) {
 
     allowances allws( get_self(), owner.value );
     auto it = allws.require_find( spender.value, "spender is not registed" );
+    check( it->balance >= quantity, "there is not enough balance" );
+    
     allws.modify( it, same_payer, [&]( auto& a ) {
         a.balance -= quantity;
     });
