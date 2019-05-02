@@ -55,7 +55,15 @@ ACTION erctoken::burnfrom( name burner, name owner, asset quantity, string memo 
     allws.modify( itr, same_payer, [&]( auto& a ) {
         a.balance -= quantity;
     });
-    sub_balance( owner, quantity );
+    // sub_balance( owner, quantity );
+    accounts from_acnts( get_self(), owner.value );
+    const auto& from = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
+    check( from.balance.amount >= quantity.amount, "overdrawn balance" );
+
+    from_acnts.modify( from, burner, [&]( auto& a ) {
+        a.balance -= quantity;
+    });
+
     _stat_state.supply -= quantity;
 }
 
@@ -143,7 +151,14 @@ ACTION erctoken::transferfrom( name spender, name from, name to, asset quantity,
 
     auto payer = has_auth( to ) ? to : spender;
 
-    sub_balance( from, quantity );
+    accounts from_acnts( get_self(), from.value );
+    const auto& facnt = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
+    check( facnt.balance.amount >= quantity.amount, "overdrawn balance" );
+
+    from_acnts.modify( facnt, spender, [&]( auto& a ) {
+        a.balance -= quantity;
+    });    
+    // sub_balance( from, quantity );
     add_balance( to, quantity, payer );
 
     allws.modify( it, same_payer, [&]( auto& a ){
