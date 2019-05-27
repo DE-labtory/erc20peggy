@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-#pragma once
-
 #include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/singleton.hpp>
@@ -27,20 +25,20 @@ using namespace eosio;
 namespace eosio{
     using std::string;
 
-    CONTRACT erctoken : public contract {
+    CONTRACT erc20 : public contract {
         public:
-            erctoken( name self, name first_receiver, datastream<const char*> ds )
+            erc20( name self, name first_receiver, datastream<const char*> ds )
             : contract( self, first_receiver, ds ), _stat( self, self.value ) {
                 _stat_state = _stat.exists() ? _stat.get() : currency_stat{};
             }
 
-            ~erctoken() {
+            ~erc20() {
                 _stat.set( _stat_state, get_self() );
             }
 
             ACTION issue( name to, asset quantity, string memo );
 
-            ACTION burn( name account, asset quantity, string memo );
+            ACTION burn( name owner, asset quantity, string memo );
 
             ACTION burnfrom( name burner, name owner, asset quantity, string memo );
 
@@ -70,16 +68,16 @@ namespace eosio{
                 return ac.balance;
             }
 
-            using issue_action = eosio::action_wrapper<"issue"_n, &erctoken::issue>;
-            using burn_action = eosio::action_wrapper<"burn"_n, &erctoken::burn>;
-            using burnfrom_action = eosio::action_wrapper<"burnfrom"_n, &erctoken::burnfrom>;
-            using transfer_action = eosio::action_wrapper<"transfer"_n, &erctoken::transfer>;
-            using approve_action = eosio::action_wrapper<"approve"_n, &erctoken::approve>;
-            using transferfrom_action = eosio::action_wrapper<"transferfrom"_n, &erctoken::transferfrom>;
-            using incallowance_action = eosio::action_wrapper<"incallowance"_n, &erctoken::incallowance>;
-            using decallowance_action = eosio::action_wrapper<"decallowance"_n, &erctoken::decallowance>;
-            using open_action = eosio::action_wrapper<"open"_n, &erctoken::open>;
-            using close_action = eosio::action_wrapper<"close"_n, &erctoken::close>;
+            using issue_action = eosio::action_wrapper<"issue"_n, &erc20::issue>;
+            using burn_action = eosio::action_wrapper<"burn"_n, &erc20::burn>;
+            using burnfrom_action = eosio::action_wrapper<"burnfrom"_n, &erc20::burnfrom>;
+            using transfer_action = eosio::action_wrapper<"transfer"_n, &erc20::transfer>;
+            using approve_action = eosio::action_wrapper<"approve"_n, &erc20::approve>;
+            using transferfrom_action = eosio::action_wrapper<"transferfrom"_n, &erc20::transferfrom>;
+            using incallowance_action = eosio::action_wrapper<"incallowance"_n, &erc20::incallowance>;
+            using decallowance_action = eosio::action_wrapper<"decallowance"_n, &erc20::decallowance>;
+            using open_action = eosio::action_wrapper<"open"_n, &erc20::open>;
+            using close_action = eosio::action_wrapper<"close"_n, &erc20::close>;
 
         private:
             TABLE account {

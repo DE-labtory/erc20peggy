@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include "ecrio.erctoken.hpp"
+#include "erc20.hpp"
 
 namespace eosio {
-ACTION erctoken::issue( name to, asset quantity, string memo ) {
+ACTION erc20::issue( name to, asset quantity, string memo ) {
     require_auth( get_self() );
 
     auto sym = quantity.symbol;
@@ -40,24 +40,23 @@ ACTION erctoken::issue( name to, asset quantity, string memo ) {
     }
 }
 
-ACTION erctoken::burn( name account, asset quantity, string memo ) {
-    require_auth( account );
+ACTION erc20::burn( name owner, asset quantity, string memo ) {
+    require_auth( owner );
 
     check( quantity.is_valid(), "invalid quantity" );
     check( quantity.amount > 0, "must burn positive quantity" );
     check( quantity.symbol == _stat_state.supply.symbol, "symbol precision mismatch" );
     check( memo.size() <= 256, "memo has more than 256 bytes" );
 
-    sub_balance( account, quantity );
+    sub_balance( owner, quantity );
     _stat_state.supply -= quantity;
 }
 
-ACTION erctoken::burnfrom( name burner, name owner, asset quantity, string memo ) {
+ACTION erc20::burnfrom( name burner, name owner, asset quantity, string memo ) {
     require_auth( burner );
-    check( burner != owner, "cannot burn self" );
+    check( burner != owner, "cannot burnfrom self" );
     check( is_account( owner ), "owner account does not exist");
 
-    require_recipient( burner );
     require_recipient( owner );
 
     check( quantity.is_valid(), "invalid quantity" );
@@ -71,22 +70,16 @@ ACTION erctoken::burnfrom( name burner, name owner, asset quantity, string memo 
     allws.modify( itr, same_payer, [&]( auto& a ) {
         a.balance -= quantity;
     });
-    // sub_balance( owner, quantity );
-    accounts from_acnts( get_self(), owner.value );
-    const auto& from = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
-    check( from.balance.amount >= quantity.amount, "overdrawn balance" );
 
-    from_acnts.modify( from, burner, [&]( auto& a ) {
-        a.balance -= quantity;
-    });
+    sub_balance( owner, quantity );
 
     _stat_state.supply -= quantity;
 }
 
-ACTION erctoken::transfer( name         from,
-                           name         to,
-                           asset        quantity,
-                           string       memo ) {
+ACTION erc20::transfer( name         from,
+                        name         to,
+                        asset        quantity,
+                        string       memo ) {
     check( from != to, "cannot transfer to self" );
     require_auth( from );
     check( is_account( to ), "to account does not exist");
@@ -105,18 +98,20 @@ ACTION erctoken::transfer( name         from,
     add_balance( to, quantity, payer );
 }
 
-void erctoken::sub_balance( name owner, asset value ) {
+void erc20::sub_balance( name owner, asset value ) {
     accounts from_acnts( get_self(), owner.value );
 
     const auto& from = from_acnts.get( value.symbol.code().raw(), "no balance object found" );
     check( from.balance.amount >= value.amount, "overdrawn balance" );
 
-    from_acnts.modify( from, owner, [&]( auto& a ) {
+    name payer = !has_auth(owner) ? same_payer : owner;
+
+    from_acnts.modify( from, payer, [&]( auto& a ) {
         a.balance -= value;
     });
 }
 
-void erctoken::add_balance( name owner, asset value, name ram_payer ) {
+void erc20::add_balance( name owner, asset value, name ram_payer ) {
     accounts to_acnts( get_self(), owner.value );
     auto to = to_acnts.find( value.symbol.code().raw() );
     if( to == to_acnts.end() ) {
@@ -130,7 +125,7 @@ void erctoken::add_balance( name owner, asset value, name ram_payer ) {
     }
 }
 
-ACTION erctoken::approve( name owner, name spender, asset quantity ) {
+ACTION erc20::approve( name owner, name spender, asset quantity ) {
     require_auth( owner );
 
     check( quantity.is_valid(), "invalid quantity" );
@@ -146,7 +141,7 @@ ACTION erctoken::approve( name owner, name spender, asset quantity ) {
     });
 }
 
-ACTION erctoken::transferfrom( name spender, name from, name to, asset quantity, string memo ) {
+ACTION erc20::transferfrom( name spender, name from, name to, asset quantity, string memo ) {
     require_auth( spender );
     check( from != to, "cannot transfer to self" );
     check( is_account( from ), "from account does not exist");
@@ -167,14 +162,7 @@ ACTION erctoken::transferfrom( name spender, name from, name to, asset quantity,
 
     auto payer = has_auth( to ) ? to : spender;
 
-    accounts from_acnts( get_self(), from.value );
-    const auto& facnt = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
-    check( facnt.balance.amount >= quantity.amount, "overdrawn balance" );
-
-    from_acnts.modify( facnt, spender, [&]( auto& a ) {
-        a.balance -= quantity;
-    });    
-    // sub_balance( from, quantity );
+    sub_balance( from, quantity );
     add_balance( to, quantity, payer );
 
     allws.modify( it, same_payer, [&]( auto& a ){
@@ -182,7 +170,7 @@ ACTION erctoken::transferfrom( name spender, name from, name to, asset quantity,
     });
 }
 
-ACTION erctoken::incallowance( name owner, name spender, asset quantity ) {
+ACTION erc20::incallowance( name owner, name spender, asset quantity ) {
     require_auth( owner );
 
     check( quantity.is_valid(), "invalid quantity" );
@@ -196,7 +184,7 @@ ACTION erctoken::incallowance( name owner, name spender, asset quantity ) {
     });
 }
 
-ACTION erctoken::decallowance( name owner, name spender, asset quantity ) {
+ACTION erc20::decallowance( name owner, name spender, asset quantity ) {
     require_auth( owner );
 
     check( quantity.is_valid(), "invalid quantity" );
@@ -212,7 +200,7 @@ ACTION erctoken::decallowance( name owner, name spender, asset quantity ) {
     });
 }
 
-ACTION erctoken::open( name owner, const symbol& symbol, name ram_payer ) {
+ACTION erc20::open( name owner, const symbol& symbol, name ram_payer ) {
     require_auth( ram_payer );
 
     auto sym_code_raw = symbol.code().raw();
@@ -228,7 +216,7 @@ ACTION erctoken::open( name owner, const symbol& symbol, name ram_payer ) {
     }
 }
 
-ACTION erctoken::close( name owner, const symbol& symbol ) {
+ACTION erc20::close( name owner, const symbol& symbol ) {
     require_auth( owner );
     accounts acnts( get_self(), owner.value );
     auto it = acnts.find( symbol.code().raw() );
@@ -239,4 +227,4 @@ ACTION erctoken::close( name owner, const symbol& symbol ) {
 
 } // namespace eosio
 
-EOSIO_DISPATCH( eosio::erctoken, (issue)(burn)(burnfrom)(transfer)(approve)(transferfrom)(incallowance)(decallowance)(open)(close) )
+EOSIO_DISPATCH( eosio::erc20, (issue)(burn)(burnfrom)(transfer)(approve)(transferfrom)(incallowance)(decallowance)(open)(close) )
